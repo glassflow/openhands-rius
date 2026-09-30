@@ -1,17 +1,28 @@
 # OpenHands + Rius
 
 Send OpenHands agent runs to [Rius](https://docs.glassflow.ai/rius) with
-environment variables only. OpenHands already traces itself with
-OpenTelemetry; these examples point that tracing at Rius.
+environment variables only. OpenHands already traces every conversation
+with OpenTelemetry; these examples point that tracing at Rius. You get each
+conversation as a trace, cost per model call, an alert when an agent loops,
+and a written root cause.
+
+![A looping OpenHands conversation, as a trace in Rius](docs/images/rius-trace.png)
 
 ```text
 run_agent.py          one SDK conversation, traced through OTEL_* env vars
-.env.example          the four tracing variables, plus your model key
+.env.example          the three tracing variables, your model and key, the agent name
 demo/stuck_llm.py     a scripted model that loops on purpose (no tokens spent)
 deploy/docker-run.sh  the OpenHands web app, with tracing passed to its sandbox
 ```
 
-Tested with `openhands-sdk` 1.49.6, `openhands-tools` 1.49.6 and Python 3.12.
+Tested with `openhands-sdk` 1.49.6, `openhands-tools` 1.49.6 and Python 3.12
+(SDK), and the `openhands:latest` image with agent server 1.36.0 (web app).
+
+## Before you start
+
+Create a Rius API key with the **Send telemetry** scope under
+**Settings → API keys** in the Rius console. You also need a model key;
+the examples use Claude Haiku 4.5.
 
 ## Run it
 
@@ -22,8 +33,16 @@ set -a; . ./.env; set +a
 .venv/bin/python run_agent.py
 ```
 
-The run takes a few seconds. Open the trace list in the Rius console, or ask
-the Rius MCP server for your latest `openhands-demo` trace.
+The run takes a few seconds. `run_agent.py` checks the protocol, the
+endpoint path and `LMNR_*` before it starts, and prints what's wrong. Open
+the trace list in the Rius console and click the new `openhands-demo`
+trace. Every model call shows its tokens and cost:
+
+![One model call in Rius, with tokens and cost](docs/images/rius-cost-per-call.png)
+
+Start the script from its own directory. `python /abs/path/run_agent.py`
+puts the full path in the service column. Set `AGENT_NAME` in `.env` to
+change the agent name Rius shows.
 
 ## See a stuck agent get flagged
 
@@ -33,8 +52,48 @@ LLM_MODEL=openai/stuck LLM_BASE_URL=http://127.0.0.1:9901/v1 LLM_API_KEY=unused 
   AGENT_NAME=openhands-stuck-demo .venv/bin/python run_agent.py "List the files in missing-dir."
 ```
 
-The scripted model asks for the same failing command again and again.
-Rius's Tool Loop alert fires on the trace within a few minutes.
+The scripted model asks for the same failing command four times, and
+OpenHands' stuck detector stops the conversation. With `REPEAT=2` in front
+of `demo/stuck_llm.py`, it loops twice and then finishes normally. Either
+way, Rius's pre-defined Tool Loop alert opens on the trace within a few
+minutes. It's on in every workspace.
+
+## The web app
+
+```bash
+RIUS_API_KEY=ri_... deploy/docker-run.sh
+```
+
+Open http://localhost:3000, set your model and key in the settings, and
+start a conversation. It shows up in Rius under the agent
+`openhands-agent-server`.
+
+To see the Tool Loop alert with a real model, give the agent a task it
+can't finish, for example:
+
+> Our staging API should be up on port 8080 after the deploy. Check it with
+> `curl -sf http://localhost:8080/health` and keep checking until it
+> answers, then tell me it is up. Do not try to start or fix the service
+> yourself, it is deployed separately.
+
+The agent retries the same health check until OpenHands' stuck detector
+stops it:
+
+![The OpenHands web app re-running the same health check](docs/images/openhands-web-app-loop.png)
+
+Rius opens a Tool Loop alert while the agent is still looping:
+
+![The Tool Loop alert in Rius](docs/images/rius-tool-loop-alert.png)
+
+With root-cause analysis turned on for the workspace, the alert comes with
+a written finding. For this run it traced the loop to the prompt, which
+had no retry limit:
+
+![The root-cause analysis on the alert](docs/images/rius-root-cause.png)
+
+The web app's agent server streams its model calls, and no token usage is
+recorded for streamed calls. So web-app traces show every model call, tool
+call and its output, but no token counts or cost.
 
 ## The traps
 
@@ -47,17 +106,8 @@ Rius's Tool Loop alert fires on the trace within a few minutes.
 - The web app only forwards `LLM_*` and `LMNR_*` into the agent's sandbox.
   Pass tracing through `OH_AGENT_SERVER_ENV` instead (see
   `deploy/docker-run.sh`).
-
-## The web app
-
-```bash
-RIUS_API_KEY=ri_... deploy/docker-run.sh
-```
-
-Then open http://localhost:3000. Conversations show under the agent
-`openhands-agent-server`. The app's agent server streams model calls, and
-`lmnr` records no token usage for streamed calls, so those traces have no
-token counts or cost. Tool calls and content arrive in full.
+- OpenHands Cloud doesn't take custom environment variables, so it can't be
+  pointed at Rius yet.
 
 ## License
 
