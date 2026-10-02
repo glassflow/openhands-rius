@@ -36,7 +36,9 @@ write up why.
   of every call.
 - **A Tool Loop alert** when the agent calls the same tool with the same
   arguments twice or more in one run. It's on in every workspace.
-- **A written root cause** for the alert, if root-cause analysis is turned
+- **A Consistent Error Pattern alert** when runs keep failing with the same
+  error, such as a model key that stopped working.
+- **A written root cause** for an alert, if root-cause analysis is turned
   on for the workspace.
 
 OpenHands has its own stuck detector, and it stops a conversation that keeps
@@ -149,6 +151,46 @@ a written finding. For this run it traced the loop to the prompt, which
 gave the agent no retry limit:
 
 ![The root-cause analysis on the alert](docs/images/rius-root-cause.png)
+
+## Get told when every run fails the same way
+
+A rotated or expired model key makes every conversation fail at its first
+model call. Rius's pre-defined **Consistent Error Pattern** alert catches
+this. By default it fires when the same error shows up at least 3 times
+across at least 2 runs within 5 minutes.
+
+To try it, run the agent three times with a key that doesn't work:
+
+```bash
+for i in 1 2 3; do
+  LLM_API_KEY=sk-ant-invalid AGENT_NAME=openhands-key-rotated-demo .venv/bin/python run_agent.py
+done
+```
+
+Each run fails with `AuthenticationError` and exits 1, but its trace still
+reaches Rius. The alert goes to every channel attached to it, here Slack
+and email:
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/images/rius-slack-alert.png" alt="The Consistent Error Pattern alert in Slack: litellm.AuthenticationError, API key is invalid, 3 occurrences across 3 runs"></td>
+    <td width="50%" valign="top"><img src="docs/images/rius-email-alert.png" alt="The same alert as an email: 3 occurrences, 3 runs, a View in Rius button and sample traces"></td>
+  </tr>
+  <tr>
+    <td><sub>Slack</sub></td>
+    <td><sub>Email</sub></td>
+  </tr>
+</table>
+
+With root-cause analysis turned on for the workspace, the alert names the
+cause: the Anthropic key is invalid.
+
+![The root-cause analysis on the Consistent Error Pattern alert: the Anthropic API key is invalid, and every model call returned 401](docs/images/rius-error-pattern-rca.png)
+
+The **Alerts** page shows every alert, its channels and its recent firings
+in one place:
+
+![The Rius Alerts page: pre-defined alerts with open firings, Slack and email channels, and recent firings](docs/images/rius-alerts-page.png)
 
 ## Good to know
 
