@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    # The stuck demo end to end: run_agent.py, the scripted model and a local
+    # OTLP receiver. No network, no model key.
+    name: smoke test (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - run: python -m py_compile run_agent.py demo/stuck_llm.py tests/smoke_test.py
+      - run: python tests/smoke_test.py
+        env:
+          OPENHANDS_SUPPRESS_BANNER: "1"
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck deploy/*.sh
+
+  secrets:
+    name: no credentials committed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan tracked files and full history for key-shaped strings
+        run: |
+          python3 - <<'PY'
+          import re, subprocess
+          pat = re.compile(r"(ri_[A-Za-z0-9_\-]{16,}|sk-ant-[A-Za-z0-9_\-]{16,}|lmnr_[A-Za-z0-9_\-]{16,})")
+          hits = []
+          files = subprocess.run(["git", "ls-files"], capture_output=True, text=True).stdout.split()
+          for f in files:
+              text = open(f, encoding="utf-8", errors="ignore").read()
+              hits += ["%s: %s..." % (f, m.group(0)[:12]) for m in pat.finditer(text)]
+          history = subprocess.run(["git", "log", "--all", "-p", "--no-color"],
+                                   capture_output=True, text=True, errors="ignore").stdout
+          hits += ["history: %s..." % m.group(0)[:12] for m in pat.finditer(history)]
+          if hits:
+              print("Possible credentials:")
+              print("\n".join("  " + h for h in sorted(set(hits))))
+              raise SystemExit(1)
+          print("no key-shaped strings in %d tracked files or history" % len(files))
+          PY

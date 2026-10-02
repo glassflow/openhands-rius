@@ -1,0 +1,61 @@
+name: Bug report
+description: Something in the example doesn't work as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before you paste logs or traces, remove API keys and anything your runs captured (prompts, file contents, command output). Security problems go to a [private advisory](https://github.com/glassflow/openhands-rius/security/advisories/new) instead.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Checked first
+      options:
+        - label: No `LMNR_*` variables are set, the protocol is `http/protobuf`, and the endpoint ends in `/v1/traces`.
+          required: true
+        - label: I searched existing issues.
+          required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where
+      options:
+        - SDK (run_agent.py)
+        - Web app (deploy/docker-run.sh)
+        - Stuck-agent demo
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output
+      description: What `run_agent.py` or the web app printed. Keys removed.
+      render: text
+  - type: input
+    id: openhands-version
+    attributes:
+      label: OpenHands version
+      description: The `openhands-sdk` version, or the image tag and agent server version.
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      description: From `python --version`.
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - macOS
+        - Linux
+        - Windows (WSL)
+        - Other
