@@ -1,57 +1,97 @@
+<p align="center">
+  <img src="docs/images/banner.png" alt="Rius by GlassFlow: OpenHands runs, traced" width="100%">
+</p>
+
 # OpenHands + Rius
 
-Send OpenHands agent runs to [Rius](https://docs.glassflow.ai/rius) with
-environment variables only. OpenHands already traces every conversation
-with OpenTelemetry; these examples point that tracing at Rius. You get each
-conversation as a trace, cost per model call, an alert when an agent loops,
-and a written root cause.
+[OpenHands](https://github.com/OpenHands/OpenHands) already traces every
+conversation with OpenTelemetry. This repo points that tracing at
+[Rius](https://www.glassflow.ai/rius), GlassFlow's agent observability
+platform, with three environment variables and no code changes. Each
+conversation becomes a trace with its model calls, tool calls and cost.
+When an agent repeats the same tool call, Rius opens an alert, and it can
+write up why.
 
-![A looping OpenHands conversation, as a trace in Rius](docs/images/rius-trace.png)
+<p>
+  <a href="https://docs.glassflow.ai/rius/guides/openhands"><b>Guide</b></a> ·
+  <a href="https://docs.glassflow.ai/rius">Rius docs</a> ·
+  <a href="https://console.rius-glassflow.com">Console</a> ·
+  <a href="https://docs.openhands.dev/sdk/guides/observability">OpenHands observability</a> ·
+  <a href="https://github.com/glassflow/openhands-rius/issues">Issues</a>
+</p>
 
-```text
-run_agent.py          one SDK conversation, traced through OTEL_* env vars
-.env.example          the three tracing variables, your model and key, the agent name
-demo/stuck_llm.py     a scripted model that loops on purpose (no tokens spent)
-deploy/docker-run.sh  the OpenHands web app, with tracing passed to its sandbox
-```
+[![CI](https://img.shields.io/github/actions/workflow/status/glassflow/openhands-rius/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/glassflow/openhands-rius/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-6b7280?style=flat-square)](LICENSE)
+![OpenHands SDK 1.49](https://img.shields.io/badge/OpenHands_SDK-1.49-e4a33c?style=flat-square)
+![OpenTelemetry](https://img.shields.io/badge/OpenTelemetry-OTLP-425cc7?style=flat-square&logo=opentelemetry&logoColor=white)
+![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776ab?style=flat-square&logo=python&logoColor=white)
 
-Tested with `openhands-sdk` 1.49.6, `openhands-tools` 1.49.6 and Python 3.12
-(SDK), and the `openhands:latest` image with agent server 1.36.0 (web app).
+<img src="docs/images/hero.png" alt="Left: the OpenHands web app running the same curl health check again and again. Right: the Tool Loop alert Rius opened for that run, and its root-cause note." width="100%">
 
-## What you need
+## What you get
 
-- **Python 3.12 or newer.** The OpenHands SDK doesn't install on older versions.
-  On macOS, `python3` is often 3.9; install 3.12 with `brew install python@3.12` or `uv python install 3.12`.
+- **Every conversation as a trace.** Agent steps, model calls and tool calls
+  nest the way OpenHands ran them, with each tool's input and output.
+- **Cost per model call.** SDK runs carry the model, token counts and price
+  of every call.
+- **A Tool Loop alert** when the agent calls the same tool with the same
+  arguments twice or more in one run. It's on in every workspace.
+- **A written root cause** for the alert, if root-cause analysis is turned
+  on for the workspace.
+
+OpenHands has its own stuck detector, and it stops a conversation that keeps
+repeating itself. Rius adds the view across runs: which agents loop, how
+often, on which tool, and what it costs.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/rius-trace.png" alt="A looping OpenHands conversation in Rius: the span tree, and a TerminalAction whose curl exited with code 7"></td>
+    <td width="50%"><img src="docs/images/rius-cost-per-call.png" alt="One model call in Rius: Claude Haiku 4.5, 7.3k tokens, $0.0098"></td>
+  </tr>
+  <tr>
+    <td><sub>The span tree. Each <code>TerminalAction</code> shows the command and its exit code.</sub></td>
+    <td><sub>Every model call shows its model, tokens and cost.</sub></td>
+  </tr>
+</table>
+
+## Quick start
+
+You need:
+
+- **Python 3.12 or newer.** The OpenHands SDK doesn't install on older
+  versions. On macOS, `python3` is often 3.9, so install 3.12 with
+  `brew install python@3.12` or `uv python install 3.12`.
 - **A Rius account.** Sign up at
-  [console.rius-glassflow.com](https://console.rius-glassflow.com) (**Create account**).
-  A new organization starts on a free trial.
-- **A Rius API key** with the **Send telemetry** scope. Create it under
-  **Settings → API keys** in the console. The key is shown once, so copy it.
-- **A model key.** The examples use Claude Haiku 4.5, so an Anthropic key. One
-  run costs about two cents. The stuck-agent demo needs no model key.
-- **Docker**, only for the web app.
+  [console.rius-glassflow.com](https://console.rius-glassflow.com). A new
+  organization starts on a free trial.
+- **A Rius API key** with the **Send telemetry** scope. Create one under
+  **Settings → API keys**. The console shows the key once, so copy it.
+- **A model key.** The example uses Claude Haiku 4.5, so an Anthropic key.
+  One run costs about two cents. The stuck-agent demo below needs no model
+  key.
 
-## Run it
+Then:
 
 ```bash
+git clone https://github.com/glassflow/openhands-rius.git && cd openhands-rius
 python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
-cp .env.example .env    # fill in LLM_API_KEY and your Rius key
+cp .env.example .env    # add your model key and your Rius key
 set -a; . ./.env; set +a
 .venv/bin/python run_agent.py
 ```
 
-The run takes a few seconds. `run_agent.py` checks the protocol, the
-endpoint path and `LMNR_*` before it starts, and prints what's wrong. Open
-the trace list in the Rius console and click the new `openhands-demo`
-trace. Every model call shows its tokens and cost:
+The run takes a few seconds. `run_agent.py` checks the tracing settings
+before it starts and tells you what's wrong. Open **Traces** in the Rius
+console and click the new `openhands-demo` trace.
 
-![One model call in Rius, with tokens and cost](docs/images/rius-cost-per-call.png)
-
-Start the script from its own directory. `python /abs/path/run_agent.py`
-puts the full path in the service column. Set `AGENT_NAME` in `.env` to
-change the agent name Rius shows.
+To name the agent something else, set `AGENT_NAME` in `.env`. Start the
+script from its own directory: `python /abs/path/run_agent.py` puts the full
+path in the service column.
 
 ## See a stuck agent get flagged
+
+`demo/stuck_llm.py` is a scripted model that asks for the same failing
+command over and over. It spends no tokens.
 
 ```bash
 .venv/bin/python demo/stuck_llm.py 9901 &
@@ -59,17 +99,17 @@ LLM_MODEL=openai/stuck LLM_BASE_URL=http://127.0.0.1:9901/v1 LLM_API_KEY=unused 
   AGENT_NAME=openhands-stuck-demo .venv/bin/python run_agent.py "List the files in missing-dir."
 ```
 
-The scripted model asks for the same failing command four times, and
-OpenHands' stuck detector stops the conversation. With `REPEAT=2` in front
-of `demo/stuck_llm.py`, it loops twice and then finishes normally. Either
-way, Rius's pre-defined Tool Loop alert opens on the trace within a few
-minutes. It's on in every workspace.
+By default it repeats the command four times, and OpenHands' stuck detector
+stops the conversation. Start it with `REPEAT=2` and it loops twice, then
+finishes normally. Either way, Rius opens a Tool Loop alert on the trace
+within a few minutes.
 
-The `REPEAT=2` run on staging: OpenHands finished it normally, with no errors.
+The `REPEAT=2` run is the interesting one. OpenHands finishes it with no
+errors:
 
 ![The finished run in Rius: two identical TerminalAction calls, then FinishAction, 0 errors](docs/images/rius-short-loop-trace.png)
 
-Rius still flagged it as a Tool Loop:
+Rius still flags it, because the agent ran the same command twice:
 
 ![The Tool Loop alert for the same run: terminal called 2 times with identical parameters](docs/images/rius-short-loop-alert.png)
 
@@ -83,47 +123,73 @@ Open http://localhost:3000, set your model and key in the settings, and
 start a conversation. It shows up in Rius under the agent
 `openhands-agent-server`.
 
-To see the Tool Loop alert with a real model, give the agent a task it
-can't finish, for example:
+The web app runs each agent in a sandbox container and forwards only
+`LLM_*` and `LMNR_*` variables into it, so OTEL settings on the app
+container do nothing. The script passes them through `OH_AGENT_SERVER_ENV`
+instead.
+
+To see a loop with a real model, give the agent a task it can't finish:
 
 > Our staging API should be up on port 8080 after the deploy. Check it with
 > `curl -sf http://localhost:8080/health` and keep checking until it
 > answers, then tell me it is up. Do not try to start or fix the service
 > yourself, it is deployed separately.
 
-The agent retries the same health check until OpenHands' stuck detector
-stops it:
+The agent runs the same health check until OpenHands' stuck detector stops
+it:
 
-![The OpenHands web app re-running the same health check](docs/images/openhands-web-app-loop.png)
+<img src="docs/images/openhands-web-app-loop.png" alt="The OpenHands web app re-running the same curl health check" width="420">
 
-Rius opens a Tool Loop alert while the agent is still looping:
+Rius opens the alert while the agent is still looping:
 
-![The Tool Loop alert in Rius](docs/images/rius-tool-loop-alert.png)
+![The Tool Loop alert in Rius: terminal called 6 times with identical parameters](docs/images/rius-tool-loop-alert.png)
 
 With root-cause analysis turned on for the workspace, the alert comes with
 a written finding. For this run it traced the loop to the prompt, which
-had no retry limit:
+gave the agent no retry limit:
 
 ![The root-cause analysis on the alert](docs/images/rius-root-cause.png)
 
-The web app's agent server streams its model calls, and no token usage is
-recorded for streamed calls. So web-app traces show every model call, tool
-call and its output, but no token counts or cost.
+## Good to know
 
-## The traps
+- **Works with the SDK and the local web app.** OpenHands Cloud doesn't
+  take custom environment variables, so it can't send to Rius this way.
+- **Web-app traces have no token counts.** The agent server streams its
+  model calls, and streamed calls record no usage. You still get every
+  model call, tool call and output.
+- **Leave every `LMNR_*` variable unset.** A Laminar key takes over and the
+  OTEL settings are ignored.
+- **Use `http/protobuf`.** The OTLP default is gRPC, which Rius doesn't
+  accept, and the endpoint must end in `/v1/traces`.
+- **Keep the `%20`.** The header value is URL-encoded, so it reads
+  `Authorization=Bearer%20ri_...`.
+- **Traces carry content.** Prompts, model replies and tool output go to
+  your Rius workspace, including anything the agent reads from disk.
 
-- `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf`. The default is gRPC,
-  which Rius doesn't accept.
-- The endpoint must end in `/v1/traces`.
-- `Bearer%20ri_...`. The header value is URL-encoded, so the space is `%20`.
-- No `LMNR_*` variables. A Laminar key takes over and the OTEL settings are
-  ignored.
-- The web app only forwards `LLM_*` and `LMNR_*` into the agent's sandbox.
-  Pass tracing through `OH_AGENT_SERVER_ENV` instead (see
-  `deploy/docker-run.sh`).
-- OpenHands Cloud doesn't take custom environment variables, so it can't be
-  pointed at Rius yet.
+## What's in here
+
+```text
+run_agent.py          one SDK conversation, traced through OTEL_* env vars
+.env.example          the three tracing variables, your model and key, the agent name
+demo/stuck_llm.py     a scripted model that loops on purpose (no tokens spent)
+deploy/docker-run.sh  the OpenHands web app, with tracing passed to its sandbox
+tests/smoke_test.py   runs the stuck demo against a local OTLP receiver, offline
+```
+
+Tested with `openhands-sdk` and `openhands-tools` 1.49.6 on Python 3.12,
+and the `openhands:latest` image with agent server 1.36.0.
+
+## Learn more
+
+The [OpenHands guide](https://docs.glassflow.ai/rius/guides/openhands) in
+the Rius docs walks through the same setup. The OpenHands side is in
+[OpenHands observability](https://docs.openhands.dev/sdk/guides/observability).
+
+## Contributing
+
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md),
+and report security problems through [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT
+[MIT](LICENSE). Built by [GlassFlow](https://www.glassflow.ai).
