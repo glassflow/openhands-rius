@@ -18,16 +18,23 @@ deploy/docker-run.sh  the OpenHands web app, with tracing passed to its sandbox
 Tested with `openhands-sdk` 1.49.6, `openhands-tools` 1.49.6 and Python 3.12
 (SDK), and the `openhands:latest` image with agent server 1.36.0 (web app).
 
-## Before you start
+## What you need
 
-Create a Rius API key with the **Send telemetry** scope under
-**Settings → API keys** in the Rius console. You also need a model key;
-the examples use Claude Haiku 4.5.
+- **Python 3.12 or newer.** The OpenHands SDK doesn't install on older versions.
+  On macOS, `python3` is often 3.9; install 3.12 with `brew install python@3.12` or `uv python install 3.12`.
+- **A Rius account.** Sign up at
+  [console.rius-glassflow.com](https://console.rius-glassflow.com) (**Create account**).
+  A new organization starts on a free trial.
+- **A Rius API key** with the **Send telemetry** scope. Create it under
+  **Settings → API keys** in the console. The key is shown once, so copy it.
+- **A model key.** The examples use Claude Haiku 4.5, so an Anthropic key. One
+  run costs about two cents. The stuck-agent demo needs no model key.
+- **Docker**, only for the web app.
 
 ## Run it
 
 ```bash
-python -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp .env.example .env    # fill in LLM_API_KEY and your Rius key
 set -a; . ./.env; set +a
 .venv/bin/python run_agent.py
