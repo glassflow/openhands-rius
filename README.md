@@ -194,8 +194,11 @@ in one place:
 
 ## Good to know
 
-- **Works with the SDK and the local web app.** OpenHands Cloud doesn't
-  take custom environment variables, so it can't send to Rius this way.
+- **Works with the SDK, the local web app and OpenHands Enterprise.** On
+  Enterprise, turn off the bundled analytics and set the same three
+  variables ([setup](https://docs.glassflow.ai/rius/guides/openhands#openhands-enterprise)).
+  OpenHands Cloud doesn't take custom environment variables, so it can't
+  send to Rius this way.
 - **Web-app traces have no token counts.** The agent server streams its
   model calls, and streamed calls record no usage. You still get every
   model call, tool call and output.
