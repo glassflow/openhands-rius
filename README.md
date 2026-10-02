@@ -138,7 +138,7 @@ To see a loop with a real model, give the agent a task it can't finish:
 The agent runs the same health check until OpenHands' stuck detector stops
 it:
 
-<img src="docs/images/openhands-web-app-loop.png" alt="The OpenHands web app re-running the same curl health check" width="420">
+<img src="docs/images/openhands-web-app-loop.png" alt="The OpenHands web app re-running the same curl health check" width="640">
 
 Rius opens the alert while the agent is still looping:
 
