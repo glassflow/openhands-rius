@@ -135,8 +135,8 @@ To see a loop with a real model, give the agent a task it can't finish:
 > answers, then tell me it is up. Do not try to start or fix the service
 > yourself, it is deployed separately.
 
-The agent runs the same health check until OpenHands' stuck detector stops
-it:
+The agent runs the same health check again and again. Depending on the
+model, it gives up on its own or OpenHands' stuck detector stops it:
 
 <img src="docs/images/openhands-web-app-loop.png" alt="The OpenHands web app re-running the same curl health check" width="640">
 
