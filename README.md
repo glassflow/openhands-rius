@@ -65,6 +65,14 @@ of `demo/stuck_llm.py`, it loops twice and then finishes normally. Either
 way, Rius's pre-defined Tool Loop alert opens on the trace within a few
 minutes. It's on in every workspace.
 
+The `REPEAT=2` run on staging: OpenHands finished it normally, with no errors.
+
+![The finished run in Rius: two identical TerminalAction calls, then FinishAction, 0 errors](docs/images/rius-short-loop-trace.png)
+
+Rius still flagged it as a Tool Loop:
+
+![The Tool Loop alert for the same run: terminal called 2 times with identical parameters](docs/images/rius-short-loop-alert.png)
+
 ## The web app
 
 ```bash
