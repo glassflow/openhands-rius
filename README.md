@@ -9,11 +9,11 @@ conversation with OpenTelemetry. This repo points that tracing at
 [Rius](https://www.glassflow.ai/rius), GlassFlow's agent observability
 platform, with three environment variables and no code changes. Each
 conversation becomes a trace with its model calls, tool calls and cost.
-When an agent repeats the same tool call, Rius opens an alert, and it can
-write up why.
+When an agent keeps repeating the same tool call, Rius opens an alert, and
+it can write up why.
 
 <p>
-  <a href="https://docs.glassflow.ai/rius/guides/openhands"><b>Guide</b></a> ·
+  <a href="https://docs.glassflow.ai/rius/guides/coding-agents/openhands"><b>Guide</b></a> ·
   <a href="https://docs.glassflow.ai/rius">Rius docs</a> ·
   <a href="https://console.rius-glassflow.com">Console</a> ·
   <a href="https://docs.openhands.dev/sdk/guides/observability">OpenHands observability</a> ·
@@ -35,9 +35,13 @@ write up why.
 - **Cost per model call.** SDK runs carry the model, token counts and price
   of every call.
 - **A Tool Loop alert** when the agent calls the same tool with the same
-  arguments twice or more in one run. It's on in every workspace.
+  arguments at least three times in a row in one run. It's on in every
+  workspace.
 - **A Consistent Error Pattern alert** when runs keep failing with the same
   error, such as a model key that stopped working.
+- **A Context rot alert** when a run's context window fills up or loses
+  history. Most findings need token counts, so it works on SDK scripts with
+  Claude or GPT-4o, not on the web app.
 - **A written root cause** for an alert, if root-cause analysis is turned
   on for the workspace.
 
@@ -102,18 +106,14 @@ LLM_MODEL=openai/stuck LLM_BASE_URL=http://127.0.0.1:9901/v1 LLM_API_KEY=unused 
 ```
 
 By default it repeats the command four times, and OpenHands' stuck detector
-stops the conversation. Start it with `REPEAT=2` and it loops twice, then
-finishes normally. Either way, Rius opens a Tool Loop alert on the trace
-within a few minutes.
+stops the conversation. The trace still reads **Ok**, because a non-zero
+exit code isn't a span error. A Tool Loop alert `terminal × 4` opens a few
+minutes later.
 
-The `REPEAT=2` run is the interesting one. OpenHands finishes it with no
-errors:
-
-![The finished run in Rius: two identical TerminalAction calls, then FinishAction, 0 errors](docs/images/rius-short-loop-trace.png)
-
-Rius still flags it, because the agent ran the same command twice:
-
-![The Tool Loop alert for the same run: terminal called 2 times with identical parameters](docs/images/rius-short-loop-alert.png)
+Start it with `REPEAT=3` in front of `demo/stuck_llm.py` for the interesting
+case. OpenHands finishes normally, because its stuck detector waits for
+four, and Rius still opens `terminal × 3`. With `REPEAT=2` no alert opens:
+two identical calls are below the Tool Loop minimum of three.
 
 ## The web app
 
@@ -196,7 +196,7 @@ in one place:
 
 - **Works with the SDK, the local web app and OpenHands Enterprise.** On
   Enterprise, turn off the bundled analytics and set the same three
-  variables ([setup](https://docs.glassflow.ai/rius/guides/openhands#openhands-enterprise)).
+  variables ([setup](https://docs.glassflow.ai/rius/guides/coding-agents/openhands#openhands-enterprise)).
   OpenHands Cloud doesn't take custom environment variables, so it can't
   send to Rius this way.
 - **Web-app traces have no token counts.** The agent server streams its
@@ -226,7 +226,7 @@ and the `openhands:latest` image with agent server 1.36.0.
 
 ## Learn more
 
-The [OpenHands guide](https://docs.glassflow.ai/rius/guides/openhands) in
+The [OpenHands guide](https://docs.glassflow.ai/rius/guides/coding-agents/openhands) in
 the Rius docs walks through the same setup. The OpenHands side is in
 [OpenHands observability](https://docs.openhands.dev/sdk/guides/observability).
 
