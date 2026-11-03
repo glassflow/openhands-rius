@@ -3,7 +3,8 @@
 It asks for the same terminal command REPEAT times, then finishes. That is
 the shape of a real stuck agent (the same call, over and over, making no
 progress) without spending tokens. Run it, point run_agent.py at it, and
-Rius's Tool Loop alert fires on the trace.
+Rius's Tool Loop alert fires on the trace. Tool Loop needs at least three
+identical calls in a row, so REPEAT=2 opens no alert.
 
     python demo/stuck_llm.py 9901 &
     LLM_MODEL=openai/stuck LLM_BASE_URL=http://127.0.0.1:9901/v1 LLM_API_KEY=unused \
